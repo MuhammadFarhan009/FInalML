@@ -1,11 +1,11 @@
-from flask import Flask, request, render_template, send_from_directory
+from flask import Flask, request, render_template, send_from_directory, jsonify, url_for
 import os
 from werkzeug.utils import secure_filename
 import cv2
 import numpy as np
 from PIL import Image
 from colorization import preprocess, post_process, ailia, load_img
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'
@@ -31,10 +31,10 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_image():
     if 'file' not in request.files:
-        return 'No file part'
+        return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
     if file.filename == '':
-        return 'No selected file'
+        return jsonify({'error': 'No selected file'}), 400
     if file:
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -52,7 +52,14 @@ def upload_image():
         savepath = os.path.join(app.config['RESULT_FOLDER'], filename)
         plt.imsave(savepath, out_img)
 
-        return send_from_directory(app.config['RESULT_FOLDER'], filename)
+        return jsonify({
+            'uploaded_image_url': url_for('display_image', filename=filename),
+            'colorized_image_url': url_for('static', filename='images/' + filename)
+        })
+
+@app.route('/display/<filename>')
+def display_image(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=9000)
+    app.run(debug=True)
